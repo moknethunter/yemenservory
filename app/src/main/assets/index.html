@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>مسّاح اليمن - إحداثيات دقيقة</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>📍 مسّاح اليمن</h1>
+            <p class="subtitle">قياس إحداثيات عالي الدقة</p>
+        </header>
+
+        <div id="calibrationScreen" class="screen active">
+            <div class="icon">🔄</div>
+            <h2>معايرة المستشعرات</h2>
+            <p>حرّك الهاتف بحركة لولبية (شكل 8) ببطء لمدة 5 ثوانٍ</p>
+            <div class="progress-bar">
+                <div id="calibrationProgress" class="progress-fill"></div>
+            </div>
+            <p id="calibrationStatus" class="status">في انتظار الحركة...</p>
+        </div>
+
+        <div id="stabilizeScreen" class="screen">
+            <div class="icon">📱</div>
+            <h2>ثبّت الهاتف</h2>
+            <p>ضع الهاتف على حامل ثابت أو أمسكه بثبات تام</p>
+            <div class="spinner"></div>
+            <p id="stabilizeStatus" class="status">جاري انتظار الاستقرار...</p>
+        </div>
+
+        <div id="resultScreen" class="screen">
+            <div class="icon">✅</div>
+            <h2>الإحداثيات</h2>
+            <div class="coords-grid">
+                <div class="coord-item">
+                    <span class="label">خط العرض</span>
+                    <span id="latValue" class="value">--</span>
+                </div>
+                <div class="coord-item">
+                    <span class="label">خط الطول</span>
+                    <span id="lonValue" class="value">--</span>
+                </div>
+                <div class="coord-item">
+                    <span class="label">الارتفاع</span>
+                    <span id="altValue" class="value">--</span>
+                </div>
+                <div class="coord-item">
+                    <span class="label">دقة الموقع</span>
+                    <span id="accValue" class="value">--</span>
+                </div>
+            </div>
+            <div class="button-group">
+                <button onclick="savePoint()" class="btn primary">💾 حفظ النقطة</button>
+                <button onclick="resetApp()" class="btn secondary">🔄 نقطة جديدة</button>
+            </div>
+            <button onclick="exportCSV()" class="btn export">📊 تصدير Excel (CSV)</button>
+            <p id="saveStatus" class="status"></p>
+        </div>
+
+        <div class="saved-points">
+            <h3>النقاط المحفوظة (<span id="pointCount">0</span>)</h3>
+            <div id="pointsList" class="points-list"></div>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
