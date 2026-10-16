@@ -57,11 +57,18 @@
             <div class="button-group">
                 <button onclick="openInGoogleEarth()" class="btn earth">🌍 فتح في Google Earth</button>
             </div>
+            <div class="button-group">
+                <button onclick="printPDF()" class="btn pdf">🖨️ طباعة تقرير PDF</button>
+            </div>
 
             <div class="section-title">📥 استيراد البيانات</div>
             <button onclick="triggerImport()" class="btn import">📥 استيراد من Excel/CSV</button>
 
             <div class="section-title">📐 الحسابات الجيوديسية</div>
+            <label class="toggle-row">
+                <input type="checkbox" id="closePolygon" checked>
+                <span>إغلاق المضلع (ربط النقطة الأخيرة بالأولى)</span>
+            </label>
             <div class="button-group">
                 <button onclick="calculateAll()" class="btn calc">📏 حساب المسافات والمساحة</button>
             </div>
@@ -75,7 +82,7 @@
         accept=".csv,.xlsx,.xls,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel"
         style="display:none" onchange="handleFileImport(event)">
 
-    <script src="xlsx.full.min.js"></script>
+    <script src="https://cdn.sheetjs.com/xlsx-0.20.0/package/dist/xlsx.full.min.js"></script>
     <script src="app.js"></script>
 </body>
 </html>
