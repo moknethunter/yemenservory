@@ -3,69 +3,79 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>مسّاح اليمن - إحداثيات دقيقة</title>
+    <title>مسّاح اليمن</title>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
     <div class="container">
         <header>
             <h1>📍 مسّاح اليمن</h1>
-            <p class="subtitle">قياس إحداثيات عالي الدقة</p>
+            <p class="subtitle">قياس إحداثيات ومسافات ومساحات</p>
         </header>
 
         <div id="calibrationScreen" class="screen active">
             <div class="icon">🔄</div>
             <h2>معايرة المستشعرات</h2>
             <p>حرّك الهاتف بحركة لولبية (شكل 8) ببطء لمدة 5 ثوانٍ</p>
-            <div class="progress-bar">
-                <div id="calibrationProgress" class="progress-fill"></div>
-            </div>
+            <div class="progress-bar"><div id="calibrationProgress" class="progress-fill"></div></div>
             <p id="calibrationStatus" class="status">في انتظار الحركة...</p>
         </div>
 
         <div id="stabilizeScreen" class="screen">
             <div class="icon">📱</div>
             <h2>ثبّت الهاتف</h2>
-            <p>ضع الهاتف على حامل ثابت أو أمسكه بثبات تام</p>
+            <p>ضع الهاتف على حامل ثابت</p>
             <div class="spinner"></div>
-            <p id="stabilizeStatus" class="status">جاري انتظار الاستقرار...</p>
+            <p id="stabilizeStatus" class="status">جاري استقبال إشارات GPS...</p>
         </div>
 
         <div id="resultScreen" class="screen">
             <div class="icon">✅</div>
             <h2>الإحداثيات</h2>
             <div class="coords-grid">
-                <div class="coord-item">
-                    <span class="label">خط العرض</span>
-                    <span id="latValue" class="value">--</span>
-                </div>
-                <div class="coord-item">
-                    <span class="label">خط الطول</span>
-                    <span id="lonValue" class="value">--</span>
-                </div>
-                <div class="coord-item">
-                    <span class="label">الارتفاع</span>
-                    <span id="altValue" class="value">--</span>
-                </div>
-                <div class="coord-item">
-                    <span class="label">دقة الموقع</span>
-                    <span id="accValue" class="value">--</span>
-                </div>
+                <div class="coord-item"><span class="label">خط العرض</span><span id="latValue" class="value">--</span></div>
+                <div class="coord-item"><span class="label">خط الطول</span><span id="lonValue" class="value">--</span></div>
+                <div class="coord-item"><span class="label">الارتفاع</span><span id="altValue" class="value">--</span></div>
+                <div class="coord-item"><span class="label">دقة الموقع</span><span id="accValue" class="value">--</span></div>
             </div>
             <div class="button-group">
                 <button onclick="savePoint()" class="btn primary">💾 حفظ النقطة</button>
                 <button onclick="resetApp()" class="btn secondary">🔄 نقطة جديدة</button>
             </div>
-            <button onclick="exportCSV()" class="btn export">📊 تصدير Excel (CSV)</button>
             <p id="saveStatus" class="status"></p>
         </div>
 
         <div class="saved-points">
             <h3>النقاط المحفوظة (<span id="pointCount">0</span>)</h3>
             <div id="pointsList" class="points-list"></div>
+
+            <div class="section-title">📤 تصدير البيانات</div>
+            <div class="button-group">
+                <button onclick="saveWithDialog()" class="btn export">💾 حفظ باسم...</button>
+                <button onclick="shareCSV()" class="btn share">📤 مشاركة</button>
+            </div>
+            <div class="button-group">
+                <button onclick="openInGoogleEarth()" class="btn earth">🌍 فتح في Google Earth</button>
+            </div>
+
+            <div class="section-title">📥 استيراد البيانات</div>
+            <button onclick="triggerImport()" class="btn import">📥 استيراد من Excel/CSV</button>
+
+            <div class="section-title">📐 الحسابات الجيوديسية</div>
+            <div class="button-group">
+                <button onclick="calculateAll()" class="btn calc">📏 حساب المسافات والمساحة</button>
+            </div>
+            <div id="calcResults" class="calc-results"></div>
+
+            <button onclick="clearAllPoints()" class="btn danger">🗑️ مسح كل النقاط</button>
         </div>
     </div>
 
+    <input type="file" id="importFile"
+        accept=".csv,.xlsx,.xls,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel"
+        style="display:none" onchange="handleFileImport(event)">
+
+    <script src="xlsx.full.min.js"></script>
     <script src="app.js"></script>
 </body>
 </html>
