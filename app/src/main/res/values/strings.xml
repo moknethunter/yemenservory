@@ -1,0 +1,13 @@
+<resources>
+    <string name="app_name">مسّاح اليمن</string>
+    <string name="app_description">تطبيق مساحي عالي الدقة لقياس الإحداثيات والمسافات</string>
+    <string name="permission_location_rationale">نحتاج صلاحية الموقع لقياس الإحداثيات بدقة عالية</string>
+    <string name="calibration_title">معايرة المستشعرات</string>
+    <string name="calibration_desc">حرّك الهاتف بحركة لولبية (شكل 8) ببطء</string>
+    <string name="stabilize_title">ثبّت الهاتف</string>
+    <string name="stabilize_desc">ضع الهاتف على حامل ثابت</string>
+    <string name="result_title">الإحداثيات</string>
+    <string name="save_point">حفظ النقطة</string>
+    <string name="new_point">نقطة جديدة</string>
+    <string name="export_excel">تصدير Excel</string>
+</resources>
