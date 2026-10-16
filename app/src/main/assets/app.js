@@ -5,7 +5,6 @@ let calibrationInterval = null;
 let currentLocation = { lat: 0, lon: 0, alt: 0, acc: 0 };
 const STORAGE_KEY = 'yemen_surveyor_points';
 
-// ===== حفظ/تحميل النقاط محلياً =====
 function persistPoints() {
     try { localStorage.setItem(STORAGE_KEY, JSON.stringify(savedPoints)); } catch (e) { console.error(e); }
 }
@@ -16,7 +15,6 @@ function loadPersistedPoints() {
     } catch (e) { savedPoints = []; }
 }
 
-// ===== 1. المعايرة =====
 function startCalibration() {
     if (window.DeviceMotionEvent) window.addEventListener('devicemotion', handleMotion);
     let elapsed = 0;
@@ -40,7 +38,6 @@ function handleMotion(event) {
     }
 }
 
-// ===== 2. التثبيت =====
 function goToStabilize() {
     showScreen('stabilizeScreen');
     document.getElementById('stabilizeStatus').textContent = '📡 جاري استقبال GPS...';
@@ -53,7 +50,6 @@ function goToStabilize() {
     }, 100);
 }
 
-// ===== 3. تحديث الموقع =====
 function onLocationUpdate(lat, lon, alt, acc) {
     currentLocation = kalmanFilter(currentLocation, { lat, lon, alt, acc });
     document.getElementById('latValue').textContent = currentLocation.lat.toFixed(8);
@@ -73,7 +69,6 @@ function kalmanFilter(prev, curr) {
     };
 }
 
-// ===== 4. حفظ النقطة =====
 function savePoint() {
     if (currentLocation.lat === 0 && currentLocation.lon === 0) {
         document.getElementById('saveStatus').textContent = '⚠️ لا توجد إحداثيات';
@@ -89,7 +84,6 @@ function savePoint() {
     document.getElementById('saveStatus').textContent = '✅ تم حفظ النقطة ' + savedPoints.length;
 }
 
-// ===== 5. قائمة النقاط =====
 function updatePointsList() {
     const list = document.getElementById('pointsList');
     document.getElementById('pointCount').textContent = savedPoints.length;
@@ -117,7 +111,6 @@ function clearAllPoints() {
     }
 }
 
-// ===== 6. بناء CSV =====
 function buildCSV() {
     let csv = '\uFEFF';
     csv += 'ID,Latitude,Longitude,Altitude(m),Accuracy(m),Timestamp\n';
@@ -127,19 +120,14 @@ function buildCSV() {
     return csv;
 }
 
-// ===== 7. اسم الملف الافتراضي =====
 function getDefaultFileName(ext) {
     const now = new Date();
     const stamp = now.toISOString().replace(/[:.]/g, '-').substring(0, 19);
     return `survey_${stamp}.${ext}`;
 }
 
-// ===== 8. حفظ مع نافذة اختيار المسار والاسم =====
 function saveWithDialog() {
-    if (savedPoints.length === 0) {
-        alert('⚠️ لا توجد نقاط');
-        return;
-    }
+    if (savedPoints.length === 0) { alert('⚠️ لا توجد نقاط'); return; }
     const csv = buildCSV();
     const defaultName = getDefaultFileName('csv');
     if (window.Android && window.Android.saveCSVWithDialog) {
@@ -147,7 +135,6 @@ function saveWithDialog() {
     }
 }
 
-// ===== 9. مشاركة CSV =====
 function shareCSV() {
     if (savedPoints.length === 0) { alert('⚠️ لا توجد نقاط'); return; }
     const csv = buildCSV();
@@ -156,7 +143,6 @@ function shareCSV() {
         window.Android.shareCSV(csv, fileName);
 }
 
-// ===== 10. استيراد من Excel/CSV =====
 function triggerImport() { document.getElementById('importFile').click(); }
 
 function handleFileImport(event) {
@@ -182,7 +168,6 @@ function handleFileImport(event) {
     }
 }
 
-// ===== 11. تحليل Excel =====
 function parseExcel(arrayBuffer) {
     try {
         const workbook = XLSX.read(new Uint8Array(arrayBuffer), { type: 'array' });
@@ -194,7 +179,6 @@ function parseExcel(arrayBuffer) {
     }
 }
 
-// ===== 12. تحليل CSV =====
 function parseCSV(content) {
     if (content.charCodeAt(0) === 0xFEFF) content = content.substring(1);
     const firstLine = content.split(/\r?\n/)[0] || '';
@@ -204,7 +188,6 @@ function parseCSV(content) {
     processRows(rows);
 }
 
-// ===== 13. معالجة الصفوف =====
 function processRows(rows) {
     if (rows.length < 2) { alert('⚠️ الملف فارغ'); return; }
 
@@ -246,17 +229,21 @@ function processRows(rows) {
     alert(msg);
 }
 
-// ===== 14. تصدير KML =====
+function isClosePolygon() {
+    const cb = document.getElementById('closePolygon');
+    return cb ? cb.checked : true;
+}
+
 function openInGoogleEarth() {
     if (savedPoints.length === 0) { alert('⚠️ لا توجد نقاط'); return; }
-    const kml = buildKML();
+    const kml = buildKML(isClosePolygon());
     const fileName = getDefaultFileName('kml');
     if (window.Android && window.Android.exportKMLAndOpen) {
         window.Android.exportKMLAndOpen(kml, fileName);
     }
 }
 
-function buildKML() {
+function buildKML(closed) {
     let placemarks = '';
     savedPoints.forEach(p => {
         placemarks += `
@@ -282,7 +269,10 @@ function buildKML() {
     }
 
     if (savedPoints.length >= 3) {
-        const polyCoords = savedPoints.map(p => `${p.lon.toFixed(8)},${p.lat.toFixed(8)},${p.alt.toFixed(2)}`).join(' ');
+        let polyCoords = savedPoints.map(p => `${p.lon.toFixed(8)},${p.lat.toFixed(8)},${p.alt.toFixed(2)}`).join(' ');
+        if (closed) {
+            polyCoords += ` ${savedPoints[0].lon.toFixed(8)},${savedPoints[0].lat.toFixed(8)},${savedPoints[0].alt.toFixed(2)}`;
+        }
         placemarks += `
     <Placemark>
       <name>المضلع</name>
@@ -290,7 +280,7 @@ function buildKML() {
       <Polygon>
         <outerBoundaryIs>
           <LinearRing>
-            <coordinates>${polyCoords} ${savedPoints[0].lon.toFixed(8)},${savedPoints[0].lat.toFixed(8)},${savedPoints[0].alt.toFixed(2)}</coordinates>
+            <coordinates>${polyCoords}</coordinates>
           </LinearRing>
         </outerBoundaryIs>
       </Polygon>
@@ -309,7 +299,6 @@ function buildKML() {
 </kml>`;
 }
 
-// ===== 15. Vincenty =====
 function vincentyDistance(lat1, lon1, lat2, lon2) {
     const a = 6378137.0;
     const f = 1 / 298.257223563;
@@ -372,7 +361,6 @@ function haversineDistance(lat1, lon1, lat2, lon2) {
     return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
-// ===== 16. مساحة المضلع =====
 function polygonArea(points) {
     if (points.length < 3) return 0;
     const R = 6378137.0;
@@ -388,57 +376,288 @@ function polygonArea(points) {
     return Math.abs(area * R * R / 2);
 }
 
-// ===== 17. حساب الكل =====
-function calculateAll() {
-    const container = document.getElementById('calcResults');
+function formatDistance(meters) {
+    return meters >= 1000 ? (meters / 1000).toFixed(4) + ' كم' : meters.toFixed(2) + ' م';
+}
 
-    if (savedPoints.length < 2) {
-        container.innerHTML = '<p class="warn">⚠️ تحتاج نقطتين على الأقل لحساب المسافات</p>';
-        return;
-    }
+function formatArea(sqm) {
+    if (sqm >= 1000000) return (sqm / 1000000).toFixed(6) + ' كم² (' + (sqm / 10000).toFixed(4) + ' هكتار)';
+    if (sqm >= 10000) return (sqm / 10000).toFixed(4) + ' هكتار (' + sqm.toFixed(2) + ' م²)';
+    return sqm.toFixed(2) + ' م²';
+}
 
-    let html = '<div class="calc-card">';
+function computeResults(closed) {
+    const results = {
+        segments: [],
+        totalPerimeter: 0,
+        directDistance: 0,
+        area: 0,
+        closed: closed
+    };
+    if (savedPoints.length < 2) return results;
 
-    html += '<h4>📏 المسافات بين النقاط (Vincenty)</h4>';
-    let totalDistance = 0;
     for (let i = 0; i < savedPoints.length - 1; i++) {
         const d = vincentyDistance(
             savedPoints[i].lat, savedPoints[i].lon,
             savedPoints[i + 1].lat, savedPoints[i + 1].lon
         );
-        totalDistance += d;
-        const dStr = d >= 1000 ? (d / 1000).toFixed(4) + ' كم' : d.toFixed(2) + ' م';
-        html += `<div class="calc-row"><span>${savedPoints[i].id} ← ${savedPoints[i + 1].id}</span><span class="val">${dStr}</span></div>`;
+        results.segments.push({
+            from: savedPoints[i].id,
+            to: savedPoints[i + 1].id,
+            distance: d
+        });
+        results.totalPerimeter += d;
     }
 
-    const totalStr = totalDistance >= 1000
-        ? (totalDistance / 1000).toFixed(4) + ' كم'
-        : totalDistance.toFixed(2) + ' م';
-    html += `<div class="calc-row total"><span>المسافة الكلية (المحيط)</span><span class="val">${totalStr}</span></div>`;
+    if (closed && savedPoints.length >= 3) {
+        const d = vincentyDistance(
+            savedPoints[savedPoints.length - 1].lat, savedPoints[savedPoints.length - 1].lon,
+            savedPoints[0].lat, savedPoints[0].lon
+        );
+        results.segments.push({
+            from: savedPoints[savedPoints.length - 1].id,
+            to: savedPoints[0].id,
+            distance: d,
+            closing: true
+        });
+        results.totalPerimeter += d;
+    }
 
     const first = savedPoints[0];
     const last = savedPoints[savedPoints.length - 1];
-    const direct = vincentyDistance(first.lat, first.lon, last.lat, last.lon);
-    const directStr = direct >= 1000 ? (direct / 1000).toFixed(4) + ' كم' : direct.toFixed(2) + ' م';
-    html += `<div class="calc-row"><span>المسافة المباشرة (${first.id} ← ${last.id})</span><span class="val">${directStr}</span></div>`;
+    results.directDistance = vincentyDistance(first.lat, first.lon, last.lat, last.lon);
 
     if (savedPoints.length >= 3) {
-        const area = polygonArea(savedPoints);
-        const areaStr = area >= 10000
-            ? (area / 10000).toFixed(4) + ' هكتار (' + (area / 1000000).toFixed(6) + ' كم²)'
-            : area.toFixed(2) + ' م²';
+        results.area = polygonArea(savedPoints);
+    }
+
+    return results;
+}
+
+function calculateAll() {
+    const container = document.getElementById('calcResults');
+    if (savedPoints.length < 2) {
+        container.innerHTML = '<p class="warn">⚠️ تحتاج نقطتين على الأقل لحساب المسافات</p>';
+        return;
+    }
+
+    const closed = isClosePolygon();
+    const r = computeResults(closed);
+
+    let html = '<div class="calc-card">';
+    html += '<h4>📏 المسافات بين النقاط (Vincenty)</h4>';
+    r.segments.forEach(s => {
+        const label = s.closing ? `${s.from} ← ${s.to} (إغلاق)` : `${s.from} ← ${s.to}`;
+        html += `<div class="calc-row"><span>${label}</span><span class="val">${formatDistance(s.distance)}</span></div>`;
+    });
+    html += `<div class="calc-row total"><span>${closed ? 'المحيط الكلي (مضلع مغلق)' : 'المسافة الكلية'}</span><span class="val">${formatDistance(r.totalPerimeter)}</span></div>`;
+    html += `<div class="calc-row"><span>المسافة المباشرة</span><span class="val">${formatDistance(r.directDistance)}</span></div>`;
+
+    if (savedPoints.length >= 3) {
         html += '<h4 style="margin-top:14px;">📐 المساحة</h4>';
-        html += `<div class="calc-row total"><span>مساحة المضلع</span><span class="val">${areaStr}</span></div>`;
+        html += `<div class="calc-row total"><span>مساحة المضلع</span><span class="val">${formatArea(r.area)}</span></div>`;
         html += `<div class="calc-row"><span>عدد النقاط</span><span class="val">${savedPoints.length}</span></div>`;
     } else {
         html += '<p class="warn" style="margin-top:10px;">⚠️ تحتاج 3 نقاط على الأقل لحساب المساحة</p>';
     }
-
     html += '</div>';
     container.innerHTML = html;
 }
 
-// ===== 18. إعادة الضبط =====
+// ===== طباعة PDF =====
+function printPDF() {
+    if (savedPoints.length === 0) {
+        alert('⚠️ لا توجد نقاط');
+        return;
+    }
+
+    const closed = isClosePolygon();
+    const r = computeResults(closed);
+    const now = new Date();
+    const dateStr = now.toLocaleString('ar-YE', {
+        year: 'numeric', month: '2-digit', day: '2-digit',
+        hour: '2-digit', minute: '2-digit'
+    });
+
+    let pointsRows = savedPoints.map(p => `
+        <tr>
+            <td>${p.id}</td>
+            <td class="ltr">${p.lat.toFixed(8)}</td>
+            <td class="ltr">${p.lon.toFixed(8)}</td>
+            <td class="ltr">${p.alt.toFixed(2)}</td>
+            <td class="ltr">${p.acc.toFixed(2)}</td>
+        </tr>`).join('');
+
+    let distancesRows = r.segments.map(s => `
+        <tr>
+            <td>${s.closing ? `${s.from} ← ${s.to} (إغلاق)` : `${s.from} ← ${s.to}`}</td>
+            <td class="ltr">${formatDistance(s.distance)}</td>
+        </tr>`).join('');
+
+    const html = `<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<style>
+    @page { size: A4; margin: 15mm; }
+    * { box-sizing: border-box; }
+    body {
+        font-family: 'Segoe UI', Tahoma, Arial, sans-serif;
+        color: #111;
+        direction: rtl;
+        margin: 0;
+        padding: 0;
+    }
+    .header {
+        text-align: center;
+        border-bottom: 3px solid #00a888;
+        padding-bottom: 10px;
+        margin-bottom: 20px;
+    }
+    .header h1 { color: #007a63; font-size: 22px; margin: 0 0 4px; }
+    .header .sub { color: #555; font-size: 12px; }
+    .meta {
+        display: flex;
+        justify-content: space-between;
+        font-size: 12px;
+        color: #333;
+        margin-bottom: 16px;
+    }
+    h2 {
+        font-size: 15px;
+        color: #007a63;
+        margin: 18px 0 8px;
+        border-right: 4px solid #00a888;
+        padding-right: 8px;
+    }
+    table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 11.5px;
+        margin-bottom: 8px;
+    }
+    th, td {
+        border: 1px solid #999;
+        padding: 6px 8px;
+        text-align: center;
+    }
+    th {
+        background: #e8f6f2;
+        color: #005a4a;
+        font-weight: bold;
+    }
+    tr:nth-child(even) td { background: #fafafa; }
+    .ltr { direction: ltr; font-family: 'Courier New', monospace; }
+    .summary {
+        background: #f0fbf7;
+        border: 2px solid #00a888;
+        border-radius: 6px;
+        padding: 12px;
+        margin-top: 16px;
+    }
+    .summary-row {
+        display: flex;
+        justify-content: space-between;
+        font-size: 13px;
+        padding: 6px 0;
+        border-bottom: 1px dashed #a8d5c9;
+    }
+    .summary-row:last-child { border-bottom: none; }
+    .summary-row.total {
+        font-weight: bold;
+        font-size: 14px;
+        color: #005a4a;
+        border-top: 2px solid #00a888;
+        padding-top: 10px;
+        margin-top: 6px;
+    }
+    .summary-row .val { direction: ltr; font-family: 'Courier New', monospace; }
+    .footer {
+        margin-top: 24px;
+        text-align: center;
+        font-size: 10px;
+        color: #888;
+        border-top: 1px solid #ccc;
+        padding-top: 8px;
+    }
+    .badge {
+        display: inline-block;
+        background: #00a888;
+        color: #fff;
+        padding: 2px 10px;
+        border-radius: 10px;
+        font-size: 10px;
+    }
+</style>
+</head>
+<body>
+    <div class="header">
+        <h1>📍 تقرير مسح ميداني</h1>
+        <div class="sub">مسّاح اليمن — Yemen Surveyor</div>
+    </div>
+
+    <div class="meta">
+        <div><b>التاريخ:</b> ${dateStr}</div>
+        <div><b>عدد النقاط:</b> ${savedPoints.length}</div>
+        <div><b>نوع المضلع:</b> <span class="badge">${closed ? 'مغلق' : 'مفتوح'}</span></div>
+    </div>
+
+    <h2>📌 جدول النقاط</h2>
+    <table>
+        <thead>
+            <tr>
+                <th>#</th>
+                <th>خط العرض</th>
+                <th>خط الطول</th>
+                <th>الارتفاع (م)</th>
+                <th>الدقة (م)</th>
+            </tr>
+        </thead>
+        <tbody>${pointsRows}</tbody>
+    </table>
+
+    <h2>📏 المسافات (صيغة Vincenty)</h2>
+    <table>
+        <thead>
+            <tr>
+                <th>من ← إلى</th>
+                <th>المسافة</th>
+            </tr>
+        </thead>
+        <tbody>${distancesRows}</tbody>
+    </table>
+
+    <div class="summary">
+        <div class="summary-row">
+            <span>المسافة الكلية (المحيط)</span>
+            <span class="val">${formatDistance(r.totalPerimeter)}</span>
+        </div>
+        <div class="summary-row">
+            <span>المسافة المباشرة (أول نقطة ← آخر نقطة)</span>
+            <span class="val">${formatDistance(r.directDistance)}</span>
+        </div>
+        ${savedPoints.length >= 3 ? `
+        <div class="summary-row total">
+            <span>📐 مساحة المضلع</span>
+            <span class="val">${formatArea(r.area)}</span>
+        </div>` : ''}
+    </div>
+
+    <div class="footer">
+        تم إنشاء هذا التقرير بواسطة تطبيق مسّاح اليمن
+        | الصيغ الجيوديسية: WGS-84 / Vincenty
+    </div>
+</body>
+</html>`;
+
+    const jobName = `تقرير_مسح_${now.toISOString().substring(0, 10)}`;
+    if (window.Android && window.Android.printHTML) {
+        window.Android.printHTML(html, jobName);
+    } else {
+        alert('⚠️ الطباعة متاحة فقط داخل التطبيق على أندرويد');
+    }
+}
+
 function resetApp() {
     currentLocation = { lat: 0, lon: 0, alt: 0, acc: 0 };
     ['latValue','lonValue','altValue','accValue'].forEach(id => document.getElementById(id).textContent = '--');
@@ -451,14 +670,12 @@ function resetApp() {
     startCalibration();
 }
 
-// ===== 19. إدارة الشاشات =====
 function showScreen(id) {
     document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
     document.getElementById(id).classList.add('active');
 }
 function showResults() { showScreen('resultScreen'); }
 
-// ===== 20. بدء التطبيق =====
 document.addEventListener('DOMContentLoaded', () => {
     loadPersistedPoints();
     startCalibration();
