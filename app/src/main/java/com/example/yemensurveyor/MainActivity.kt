@@ -2,12 +2,14 @@ package com.example.yemensurveyor
 
 import android.Manifest
 import android.annotation.SuppressLint
+import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.net.Uri
-import android.os.Build
 import android.os.Bundle
 import android.os.Environment
+import android.print.PrintAttributes
+import android.print.PrintManager
 import android.webkit.JavascriptInterface
 import android.webkit.ValueCallback
 import android.webkit.WebChromeClient
@@ -252,6 +254,56 @@ class MainActivity : AppCompatActivity() {
                     runOnUiThread {
                         Toast.makeText(
                             this@MainActivity, "❌ خطأ: ${e.message}", Toast.LENGTH_LONG
+                        ).show()
+                    }
+                }
+            }
+
+            /**
+             * طباعة HTML وحفظه كملف PDF عبر نافذة الطباعة الرسمية في أندرويد.
+             */
+            @JavascriptInterface
+            fun printHTML(htmlContent: String, jobName: String) {
+                runOnUiThread {
+                    try {
+                        val printWebView = WebView(this@MainActivity)
+                        printWebView.settings.javaScriptEnabled = false
+                        printWebView.webViewClient = object : WebViewClient() {
+                            override fun onPageFinished(view: WebView?, url: String?) {
+                                try {
+                                    val printManager = getSystemService(Context.PRINT_SERVICE) as PrintManager
+                                    val printAdapter = view?.createPrintDocumentAdapter(jobName)
+                                    if (printAdapter != null) {
+                                        val attrs = PrintAttributes.Builder()
+                                            .setMediaSize(PrintAttributes.MediaSize.ISO_A4)
+                                            .setResolution(PrintAttributes.Resolution("pdf", "pdf", 600, 600))
+                                            .setMinMargins(PrintAttributes.Margins.NO_MARGINS)
+                                            .build()
+                                        printManager.print(jobName, printAdapter, attrs)
+                                    } else {
+                                        Toast.makeText(
+                                            this@MainActivity,
+                                            "❌ فشل إنشاء محول الطباعة",
+                                            Toast.LENGTH_LONG
+                                        ).show()
+                                    }
+                                } catch (e: Exception) {
+                                    Toast.makeText(
+                                        this@MainActivity,
+                                        "❌ خطأ في الطباعة: ${e.message}",
+                                        Toast.LENGTH_LONG
+                                    ).show()
+                                }
+                            }
+                        }
+                        printWebView.loadDataWithBaseURL(
+                            null, htmlContent, "text/HTML", "UTF-8", null
+                        )
+                    } catch (e: Exception) {
+                        Toast.makeText(
+                            this@MainActivity,
+                            "❌ خطأ: ${e.message}",
+                            Toast.LENGTH_LONG
                         ).show()
                     }
                 }
