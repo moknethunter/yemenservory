@@ -68,7 +68,8 @@ h2 { font-size: 20px; margin-bottom: 12px; color: #fff; }
 
 .coord-item .label { display: block; font-size: 12px; color: #888; margin-bottom: 6px; }
 .coord-item .value { display: block; font-size: 18px; font-weight: bold; color: #00d4aa; direction: ltr; }
-.button-group { display: flex; gap: 10px; margin-top: 16px; }
+
+.button-group { display: flex; gap: 10px; margin-top: 10px; }
 
 .btn {
     flex: 1;
@@ -78,13 +79,20 @@ h2 { font-size: 20px; margin-bottom: 12px; color: #fff; }
     font-size: 15px;
     font-weight: bold;
     cursor: pointer;
-    transition: transform 0.1s;
+    transition: transform 0.1s, background 0.2s;
+    width: 100%;
+    margin-top: 10px;
 }
 
 .btn:active { transform: scale(0.97); }
-.btn.primary { background: #00d4aa; color: #0a0e27; }
-.btn.secondary { background: #1a1f3a; color: #e0e0e0; }
-.btn.export { width: 100%; margin-top: 10px; background: #2d5a8a; color: #fff; }
+.btn.primary { background: #00d4aa; color: #0a0e27; margin-top: 0; }
+.btn.secondary { background: #1a1f3a; color: #e0e0e0; margin-top: 0; }
+.btn.export { background: #2d5a8a; color: #fff; margin-top: 0; }
+.btn.share { background: #4a7c59; color: #fff; margin-top: 0; }
+.btn.import { background: #8a5a2d; color: #fff; }
+.btn.danger { background: #8a2d3a; color: #fff; }
+.btn.earth { background: linear-gradient(135deg, #1a73e8, #4285f4); color: #fff; }
+.btn.calc { background: linear-gradient(135deg, #7b1fa2, #9c27b0); color: #fff; }
 
 .saved-points {
     margin-top: 24px;
@@ -94,15 +102,86 @@ h2 { font-size: 20px; margin-bottom: 12px; color: #fff; }
 }
 
 .saved-points h3 { font-size: 16px; margin-bottom: 12px; color: #fff; }
-.points-list { max-height: 200px; overflow-y: auto; }
+.points-list { max-height: 260px; overflow-y: auto; }
 
 .point-item {
     display: flex;
     justify-content: space-between;
+    align-items: center;
     padding: 10px;
     border-bottom: 1px solid #0a0e27;
     font-size: 13px;
+    gap: 8px;
 }
 
 .point-item:last-child { border-bottom: none; }
-.point-item .coords { direction: ltr; font-family: monospace; color: #00d4aa; }
+.point-item .coords { direction: ltr; font-family: monospace; color: #00d4aa; flex: 1; text-align: center; }
+
+.delete-btn {
+    background: transparent;
+    border: none;
+    color: #ff5566;
+    font-size: 16px;
+    cursor: pointer;
+    padding: 4px 8px;
+    border-radius: 6px;
+}
+
+.delete-btn:hover { background: rgba(255, 85, 102, 0.15); }
+
+.section-title {
+    font-size: 15px;
+    font-weight: bold;
+    color: #00d4aa;
+    margin: 18px 0 10px;
+    padding-bottom: 6px;
+    border-bottom: 1px solid #2a3050;
+}
+
+.calc-results { margin-top: 10px; }
+
+.calc-card {
+    background: #0f1430;
+    border-radius: 10px;
+    padding: 14px;
+    border: 1px solid #2a3050;
+}
+
+.calc-card h4 {
+    font-size: 14px;
+    color: #00d4aa;
+    margin-bottom: 10px;
+}
+
+.calc-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 7px 0;
+    font-size: 13px;
+    border-bottom: 1px solid #1a1f3a;
+}
+
+.calc-row:last-child { border-bottom: none; }
+
+.calc-row.total {
+    margin-top: 6px;
+    padding-top: 10px;
+    border-top: 2px solid #00d4aa;
+    font-weight: bold;
+    color: #fff;
+}
+
+.calc-row .val {
+    color: #00d4aa;
+    font-family: monospace;
+    direction: ltr;
+}
+
+.calc-row.total .val { color: #00ff88; }
+
+.warn {
+    color: #ffaa44;
+    font-size: 13px;
+    text-align: center;
+    padding: 10px;
+}
