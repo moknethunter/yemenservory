@@ -49,6 +49,15 @@
             <h3>النقاط المحفوظة (<span id="pointCount">0</span>)</h3>
             <div id="pointsList" class="points-list"></div>
 
+            <div class="section-title">🛰️ صورة إسقاط من Google Earth</div>
+            <div class="button-group">
+                <button onclick="attachSatelliteImage()" class="btn satellite">📷 إرفاق صورة</button>
+                <button onclick="removeSatelliteImage()" class="btn danger-small">🗑️ حذف</button>
+            </div>
+            <input type="file" id="satelliteImageInput" accept="image/*"
+                   style="display:none" onchange="handleSatelliteImage(event)">
+            <div id="satelliteImagePreview"></div>
+
             <div class="section-title">📤 تصدير البيانات</div>
             <div class="button-group">
                 <button onclick="saveWithDialog()" class="btn export">💾 حفظ باسم...</button>
