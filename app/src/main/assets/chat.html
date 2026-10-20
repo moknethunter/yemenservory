@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html dir="rtl" lang="ar">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>دردشة MokAssas</title>
+  <style>
+    body { font-family: sans-serif; background-color: #f4f4f9; margin: 0; padding: 0; display: flex; flex-direction: column; height: 100vh; }
+    .header { background: #007bff; color: white; padding: 15px; display: flex; align-items: center; justify-content: space-between; }
+    .header button { background: white; color: #007bff; border: none; padding: 5px 15px; border-radius: 5px; font-weight: bold; cursor: pointer; }
+    .chat-box { flex: 1; overflow-y: auto; padding: 15px; display: flex; flex-direction: column; gap: 10px; }
+    .msg { padding: 10px 15px; border-radius: 15px; max-width: 80%; word-wrap: break-word; font-size: 15px; }
+    .msg.mine { background-color: #007bff; color: white; align-self: flex-start; }
+    .msg.theirs { background-color: #e9ecef; color: black; align-self: flex-end; }
+    .input-area { display: flex; gap: 5px; padding: 10px; background: white; border-top: 1px solid #ddd; }
+    input[type="text"] { flex: 1; padding: 12px; border-radius: 25px; border: 1px solid #ccc; font-size: 15px; outline: none; }
+    button.send-btn { padding: 10px 20px; border: none; border-radius: 25px; background: #28a745; color: white; font-weight: bold; cursor: pointer; }
+  </style>
+</head>
+<body>
+
+  <div class="header">
+    <span>💬 دردشة المنصة</span>
+    <div>
+      <select id="chat-role" style="padding: 5px; border-radius: 5px; border: none;">
+        <option value="A">هاتف (A)</option>
+        <option value="B">هاتف (B)</option>
+      </select>
+      <button onclick="window.history.back()">رجوع</button>
+    </div>
+  </div>
+
+  <div class="chat-box" id="mokassas-chat-box"></div>
+
+  <div class="input-area">
+    <input type="text" id="mokassas-msg-input" placeholder="اكتب رسالة..." onkeypress="if(event.key==='Enter') mokassasSendMessage()">
+    <button class="send-btn" onclick="mokassasSendMessage()">إرسال</button>
+  </div>
+
+  <script>
+    const MOKASSAS_API_URL = 'https://mokassas-production.up.railway.app/api';
+    let mokassasLastId = 0;
+    let mokassasPolling;
+
+    function mokassasGetRole() { return document.getElementById('chat-role').value; }
+    function mokassasGetApiKey() { return mokassasGetRole() === 'A' ? 'app-a-secret-key-123' : 'app-b-secret-key-456'; }
+
+    async function mokassasSendMessage() {
+      const input = document.getElementById('mokassas-msg-input');
+      const text = input.value.trim();
+      if (!text) return;
+
+      const role = mokassasGetRole();
+      const target = role === 'A' ? 'B' : 'A';
+      input.value = '...';
+
+      try {
+        const res = await fetch(`${MOKASSAS_API_URL}/chat/send`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'X-API-Key': mokassasGetApiKey() },
+          body: JSON.stringify({ from: role, to: target, text: text })
+        });
+        if (res.ok) {
+          input.value = '';
+          mokassasAppendMessage(text, true);
+        } else {
+          alert('فشل الإرسال');
+          input.value = text;
+        }
+      } catch (e) {
+        alert('خطأ في الاتصال');
+        input.value = text;
+      }
+    }
+
+    function mokassasStartPolling() {
+      clearInterval(mokassasPolling);
+      mokassasLastId = 0;
+      document.getElementById('mokassas-chat-box').innerHTML = '';
+      
+      mokassasPolling = setInterval(async () => {
+        const role = mokassasGetRole();
+        try {
+          const res = await fetch(`${MOKASSAS_API_URL}/chat/messages/${role}?lastId=${mokassasLastId}`, {
+            headers: { 'X-API-Key': mokassasGetApiKey() }
+          });
+          const data = await res.json();
+          if (data.success && data.messages.length > 0) {
+            data.messages.forEach(msg => {
+              mokassasAppendMessage(msg.text, false);
+              mokassasLastId = msg.id;
+            });
+          }
+        } catch (e) { console.log('Polling error'); }
+      }, 3000);
+    }
+
+    function mokassasAppendMessage(text, isMine) {
+      const box = document.getElementById('mokassas-chat-box');
+      const div = document.createElement('div');
+      div.className = `msg ${isMine ? 'mine' : 'theirs'}`;
+      div.innerText = text;
+      box.appendChild(div);
+      box.scrollTop = box.scrollHeight;
+    }
+
+    window.addEventListener('load', () => {
+      mokassasStartPolling();
+      document.getElementById('chat-role').addEventListener('change', mokassasStartPolling);
+    });
+  </script>
+</body>
+</html>
