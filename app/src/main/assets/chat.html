@@ -6,27 +6,32 @@
   <title>دردشة MokAssas</title>
   <style>
     body { font-family: sans-serif; background-color: #f4f4f9; margin: 0; padding: 0; display: flex; flex-direction: column; height: 100vh; }
-    .header { background: #007bff; color: white; padding: 15px; display: flex; align-items: center; justify-content: space-between; }
-    .header button { background: white; color: #007bff; border: none; padding: 5px 15px; border-radius: 5px; font-weight: bold; cursor: pointer; }
-    .chat-box { flex: 1; overflow-y: auto; padding: 15px; display: flex; flex-direction: column; gap: 10px; }
-    .msg { padding: 10px 15px; border-radius: 15px; max-width: 80%; word-wrap: break-word; font-size: 15px; }
+    .header { background: #007bff; color: white; padding: 10px; display: flex; flex-direction: column; gap: 5px; }
+    .header-row { display: flex; justify-content: space-between; align-items: center; }
+    .header input { padding: 5px; border-radius: 5px; border: none; font-size: 12px; direction: ltr; }
+    .header button { background: white; color: #007bff; border: none; padding: 5px 10px; border-radius: 5px; font-weight: bold; cursor: pointer; }
+    .chat-box { flex: 1; overflow-y: auto; padding: 10px; display: flex; flex-direction: column; gap: 10px; }
+    .msg { padding: 10px 15px; border-radius: 15px; max-width: 80%; word-wrap: break-word; font-size: 14px; }
     .msg.mine { background-color: #007bff; color: white; align-self: flex-start; }
     .msg.theirs { background-color: #e9ecef; color: black; align-self: flex-end; }
     .input-area { display: flex; gap: 5px; padding: 10px; background: white; border-top: 1px solid #ddd; }
-    input[type="text"] { flex: 1; padding: 12px; border-radius: 25px; border: 1px solid #ccc; font-size: 15px; outline: none; }
-    button.send-btn { padding: 10px 20px; border: none; border-radius: 25px; background: #28a745; color: white; font-weight: bold; cursor: pointer; }
+    input[type="text"] { flex: 1; padding: 10px; border-radius: 20px; border: 1px solid #ccc; }
+    button.send-btn { padding: 10px 20px; border: none; border-radius: 20px; background: #28a745; color: white; font-weight: bold; }
   </style>
 </head>
 <body>
 
   <div class="header">
-    <span>💬 دردشة المنصة</span>
-    <div>
-      <select id="chat-role" style="padding: 5px; border-radius: 5px; border: none;">
-        <option value="A">هاتف (A)</option>
-        <option value="B">هاتف (B)</option>
-      </select>
+    <div class="header-row">
+      <span>💬 MokAssas</span>
       <button onclick="window.history.back()">رجوع</button>
+    </div>
+    <div class="header-row">
+      <input type="text" id="my-key" placeholder="مفتاحي السري" onchange="saveKeys()">
+      <button onclick="registerDevice()">تسجيل جهاز جديد</button>
+    </div>
+    <div class="header-row">
+      <input type="text" id="to-key" placeholder="مفتاح الطرف الآخر (لإرسال رسالة)" onchange="saveKeys()">
     </div>
   </div>
 
@@ -38,64 +43,92 @@
   </div>
 
   <script>
-    const MOKASSAS_API_URL = 'https://mokassas-production.up.railway.app/api';
-    let mokassasLastId = 0;
-    let mokassasPolling;
+    const API_URL = 'https://mokassas-production.up.railway.app/api';
+    let lastMessageId = 0;
+    let polling;
 
-    function mokassasGetRole() { return document.getElementById('chat-role').value; }
-    function mokassasGetApiKey() { return mokassasGetRole() === 'A' ? 'app-a-secret-key-123' : 'app-b-secret-key-456'; }
+    // تحميل المفاتيح المحفوظة سابقاً
+    window.onload = () => {
+      document.getElementById('my-key').value = localStorage.getItem('myKey') || '';
+      document.getElementById('to-key').value = localStorage.getItem('toKey') || '';
+      startPolling();
+    };
 
-    async function mokassasSendMessage() {
-      const input = document.getElementById('mokassas-msg-input');
-      const text = input.value.trim();
-      if (!text) return;
-
-      const role = mokassasGetRole();
-      const target = role === 'A' ? 'B' : 'A';
-      input.value = '...';
-
-      try {
-        const res = await fetch(`${MOKASSAS_API_URL}/chat/send`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'X-API-Key': mokassasGetApiKey() },
-          body: JSON.stringify({ from: role, to: target, text: text })
-        });
-        if (res.ok) {
-          input.value = '';
-          mokassasAppendMessage(text, true);
-        } else {
-          alert('فشل الإرسال');
-          input.value = text;
-        }
-      } catch (e) {
-        alert('خطأ في الاتصال');
-        input.value = text;
-      }
+    function saveKeys() {
+      localStorage.setItem('myKey', document.getElementById('my-key').value.trim());
+      localStorage.setItem('toKey', document.getElementById('to-key').value.trim());
+      lastMessageId = 0;
+      document.getElementById('mokassas-chat-box').innerHTML = '';
     }
 
-    function mokassasStartPolling() {
-      clearInterval(mokassasPolling);
-      mokassasLastId = 0;
-      document.getElementById('mokassas-chat-box').innerHTML = '';
-      
-      mokassasPolling = setInterval(async () => {
-        const role = mokassasGetRole();
+    // تسجيل جهاز جديد والحصول على مفتاح
+    async function registerDevice() {
+      const name = prompt('أدخل اسماً لهذا الجهاز (مثلاً: هاتف أحمد):');
+      if (!name) return;
+      try {
+        const res = await fetch(`${API_URL}/register`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ deviceName: name })
+        });
+        const data = await res.json();
+        if (data.success) {
+          document.getElementById('my-key').value = data.apiKey;
+          saveKeys();
+          alert('تم التسجيل بنجاح! مفتاحك هو: \n' + data.apiKey + '\n\nانسخه وأعطه للطرف الآخر.');
+        }
+      } catch (e) { alert('فشل التسجيل: ' + e.message); }
+    }
+
+    async function mokassasSendMessage() {
+      const myKey = document.getElementById('my-key').value.trim();
+      const toKey = document.getElementById('to-key').value.trim();
+      const input = document.getElementById('mokassas-msg-input');
+      const text = input.value.trim();
+
+      if (!myKey) return alert('أدخل مفتاحك السري أولاً');
+      if (!toKey) return alert('أدخل مفتاح الطرف الآخر');
+      if (!text) return;
+
+      input.value = '...';
+      try {
+        const res = await fetch(`${API_URL}/chat/send`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'X-API-Key': myKey },
+          body: JSON.stringify({ toKey: toKey, text: text })
+        });
+        const data = await res.json();
+        if (res.ok) {
+          input.value = '';
+          appendMessage(text, true);
+        } else {
+          alert('فشل: ' + data.message); input.value = text;
+        }
+      } catch (e) { alert('خطأ: ' + e.message); input.value = text; }
+    }
+
+    function startPolling() {
+      clearInterval(polling);
+      polling = setInterval(async () => {
+        const myKey = document.getElementById('my-key').value.trim();
+        if (!myKey) return;
+
         try {
-          const res = await fetch(`${MOKASSAS_API_URL}/chat/messages/${role}?lastId=${mokassasLastId}`, {
-            headers: { 'X-API-Key': mokassasGetApiKey() }
+          const res = await fetch(`${API_URL}/chat/messages?lastId=${lastMessageId}`, {
+            headers: { 'X-API-Key': myKey }
           });
           const data = await res.json();
           if (data.success && data.messages.length > 0) {
             data.messages.forEach(msg => {
-              mokassasAppendMessage(msg.text, false);
-              mokassasLastId = msg.id;
+              appendMessage(msg.text, false);
+              lastMessageId = msg.id;
             });
           }
         } catch (e) { console.log('Polling error'); }
       }, 3000);
     }
 
-    function mokassasAppendMessage(text, isMine) {
+    function appendMessage(text, isMine) {
       const box = document.getElementById('mokassas-chat-box');
       const div = document.createElement('div');
       div.className = `msg ${isMine ? 'mine' : 'theirs'}`;
@@ -103,11 +136,6 @@
       box.appendChild(div);
       box.scrollTop = box.scrollHeight;
     }
-
-    window.addEventListener('load', () => {
-      mokassasStartPolling();
-      document.getElementById('chat-role').addEventListener('change', mokassasStartPolling);
-    });
   </script>
 </body>
 </html>
