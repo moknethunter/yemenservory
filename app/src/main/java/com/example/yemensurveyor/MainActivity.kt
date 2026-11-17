@@ -143,6 +143,56 @@ class MainActivity : AppCompatActivity() {
                 locationHelper.stopTracking()
             }
 
+            // ===== دوال GPS الجديدة - محرك الدقة العالية =====
+
+            @JavascriptInterface
+            fun canSavePoint(): Boolean {
+                return locationHelper.canSavePoint()
+            }
+
+            @JavascriptInterface
+            fun getStability(): String {
+                return locationHelper.getStability()
+            }
+
+            @JavascriptInterface
+            fun getSatInfo(): String {
+                return locationHelper.getSatInfo()
+            }
+
+            @JavascriptInterface
+            fun getRawVsFiltered(): String {
+                // للمقارنة والتصدير في CSV: rawLat,rawLng,rawAcc,filteredLat,filteredLng,filteredAcc
+                return locationHelper.getRawVsFiltered()
+            }
+
+            @JavascriptInterface
+            fun getLastRawLat(): Double {
+                return locationHelper.lastRawLat
+            }
+
+            @JavascriptInterface
+            fun getLastRawLng(): Double {
+                return locationHelper.lastRawLng
+            }
+
+            @JavascriptInterface
+            fun getLastFilteredLat(): Double {
+                return locationHelper.lastFilteredLat
+            }
+
+            @JavascriptInterface
+            fun getLastFilteredLng(): Double {
+                return locationHelper.lastFilteredLng
+            }
+
+            @JavascriptInterface
+            fun getLastFilteredAccuracy(): Float {
+                return locationHelper.lastFilteredAccuracy
+            }
+
+            // ===== نهاية دوال GPS الجديدة =====
+
             @JavascriptInterface
             fun saveCSVWithDialog(csvContent: String, suggestedName: String) {
                 pendingCsvContent = csvContent
@@ -183,7 +233,8 @@ class MainActivity : AppCompatActivity() {
                 } catch (e: Exception) {
                     runOnUiThread {
                         Toast.makeText(
-                            this@MainActivity, "❌ خطأ: ${e.message}", Toast.LENGTH_LONG
+                            this@MainActivity, "❌ خطأ: ${e.message}",
+                            Toast.LENGTH_LONG
                         ).show()
                     }
                 }
@@ -253,7 +304,8 @@ class MainActivity : AppCompatActivity() {
                 } catch (e: Exception) {
                     runOnUiThread {
                         Toast.makeText(
-                            this@MainActivity, "❌ خطأ: ${e.message}", Toast.LENGTH_LONG
+                            this@MainActivity, "❌ خطأ في KML: ${e.message}",
+                            Toast.LENGTH_LONG
                         ).show()
                     }
                 }
