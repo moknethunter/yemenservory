@@ -3,6 +3,13 @@ plugins {
     id("org.jetbrains.kotlin.android")
 }
 
+val licenseKey = providers.gradleProperty("surveyLicensePublicKey").orElse("").get()
+val supportEmail = providers.gradleProperty("surveySupportEmail").orElse("").get()
+require(licenseKey.matches(Regex("[A-Za-z0-9+/=]*"))) { "Use the DER public key printed by licensing/manage.py." }
+require(supportEmail.isEmpty() || supportEmail.matches(Regex("[A-Za-z0-9._+%-]+@[A-Za-z0-9.-]+"))) {
+    "Set surveySupportEmail to a valid email address."
+}
+
 android {
     namespace = "com.example.yemensurveyor"
     compileSdk = 35
@@ -14,6 +21,8 @@ android {
         versionCode = 1
         versionName = "1.0.0"
 
+        buildConfigField("String", "SURVEY_LICENSE_PUBLIC_KEY", "\"$licenseKey\"")
+        buildConfigField("String", "SURVEY_SUPPORT_EMAIL", "\"$supportEmail\"")
         resourceConfigurations += listOf("ar", "en")
     }
 
@@ -42,6 +51,7 @@ android {
 
     buildFeatures {
         viewBinding = true
+        buildConfig = true
     }
 
     packaging {
@@ -52,6 +62,7 @@ android {
 }
 
 dependencies {
+    implementation("net.sf.geographiclib:GeographicLib-Java:2.0")
     implementation("androidx.core:core-ktx:1.15.0")
     implementation("androidx.appcompat:appcompat:1.7.0")
     implementation("com.google.android.material:material:1.12.0")

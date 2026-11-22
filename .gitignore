@@ -12,3 +12,6 @@ local.properties
 *.aab
 *.keystore
 !debug.keystore
+/app/build/
+__pycache__/
+.licenses/
