@@ -63,14 +63,14 @@ def signed_license(directory, email, device, plan, now, expires):
     return token_part(payload) + "." + token_part(signature)
 
 
-def issue(directory, email, device, paid_days=None):
+def issue(directory, email, device, paid_days):
     email = email.strip().lower()
     device = device.strip().lower()
     if len(email) > 254 or not EMAIL.fullmatch(email) or not DEVICE.fullmatch(device):
         raise ValueError("Enter the customer's email and the 64-character device code from the app.")
     if not (directory / "signing.pem").is_file():
         raise ValueError("Run init on the owner's computer first.")
-    if paid_days is not None and not 1 <= paid_days <= 3660:
+    if not 1 <= paid_days <= 3660:
         raise ValueError("Enter between 1 and 3,660 paid days.")
 
     db = directory / "licenses.sqlite3"
@@ -78,10 +78,6 @@ def issue(directory, email, device, paid_days=None):
     os.close(descriptor)
     with closing(sqlite3.connect(db, timeout=15)) as connection, connection:
         connection.executescript("""
-            CREATE TABLE IF NOT EXISTS trials (
-                email TEXT PRIMARY KEY,
-                device TEXT NOT NULL UNIQUE
-            );
             CREATE TABLE IF NOT EXISTS licenses (
                 email TEXT NOT NULL,
                 device TEXT NOT NULL,
@@ -93,24 +89,12 @@ def issue(directory, email, device, paid_days=None):
         """)
         connection.execute("BEGIN IMMEDIATE")
         current = connection.execute(
-            "SELECT expires, plan, token FROM licenses WHERE email = ? AND device = ?",
+            "SELECT expires FROM licenses WHERE email = ? AND device = ?",
             (email, device),
         ).fetchone()
         now = int(time.time())
-        if paid_days is None:
-            if current:
-                if current[0] > now:
-                    return current[2], current[0], current[1]
-                raise ValueError("The original activation has expired. Choose a paid extension.")
-            try:
-                connection.execute("INSERT INTO trials VALUES (?, ?)", (email, device))
-            except sqlite3.IntegrityError:
-                raise ValueError("This email or device has already used the free trial.")
-            plan = "trial"
-            expires = now + 30 * DAY
-        else:
-            plan = "paid"
-            expires = max(now, current[0] if current else 0) + paid_days * DAY
+        plan = "paid"
+        expires = max(now, current[0] if current else 0) + paid_days * DAY
         token = signed_license(directory, email, device, plan, now, expires)
         connection.execute(
             "INSERT OR REPLACE INTO licenses VALUES (?, ?, ?, ?, ?)",
@@ -163,9 +147,7 @@ def main():
         action.add_argument("--device", required=True)
         action.add_argument("--send", action="store_true", help="Email the code to the supplied address via SMTP.")
         if command == "issue":
-            plan = action.add_mutually_exclusive_group(required=True)
-            plan.add_argument("--trial", action="store_true")
-            plan.add_argument("--paid-days", type=int)
+            action.add_argument("--paid-days", type=int, required=True)
     args = parser.parse_args()
     try:
         if args.command == "init":

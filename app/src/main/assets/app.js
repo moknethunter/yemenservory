@@ -130,7 +130,7 @@ function onSurveyState(next) {
         return;
     }
     if (byId('activationToken').value) byId('activationToken').value = '';
-    text('licenseSummary', (active.plan === 'trial' ? 'تجربة حتى ' : 'مفعّل حتى ') +
+    text('licenseSummary', (active.plan === 'trial' ? 'مجاني حتى ' : 'مفعّل حتى ') +
         new Date(active.expires * 1000).toLocaleDateString('ar-YE'));
 
     const field = next.field;

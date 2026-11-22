@@ -10,12 +10,16 @@ import java.security.KeyFactory
 import java.security.MessageDigest
 import java.security.Signature
 import java.security.spec.X509EncodedKeySpec
+import java.util.Calendar
+import java.util.GregorianCalendar
 import java.util.Locale
+import java.util.TimeZone
 
 class Activation(context: Context) {
     data class License(val email: String, val plan: String, val expiresAt: Long)
 
     private val settings = context.getSharedPreferences("survey_activation_v1", Context.MODE_PRIVATE)
+    private val trialSettings = context.getSharedPreferences("survey_free_trial_v1", Context.MODE_PRIVATE)
     private val bootCount = Settings.Global.getInt(context.contentResolver, Settings.Global.BOOT_COUNT, -1)
     private val flags = Base64.URL_SAFE or Base64.NO_PADDING or Base64.NO_WRAP
     val device: String = Settings.Secure.getString(context.contentResolver, Settings.Secure.ANDROID_ID)
@@ -32,7 +36,11 @@ class Activation(context: Context) {
     val configured: Boolean get() = ownerEmail.isNotBlank() && key != null && device.isNotBlank()
 
     private var stored: License? = settings.getString("token", null)?.let(::verify)
-    private var lastObserved = settings.getLong("lastSeen", 0)
+    private val savedTrialStart = trialSettings.getLong("startedAt", 0).takeIf {
+        it > 0 && trialSettings.getString("device", null) == device
+    } ?: 0
+    private var freeTrial = savedTrialStart.takeIf { it > 0 }?.let(::trialLicense)
+    private var lastObserved = maxOf(settings.getLong("lastSeen", 0), savedTrialStart)
     private var lastElapsed = settings.getLong("elapsed", 0)
     private var lastBoot = settings.getInt("boot", -1)
     var reason: String = ""
@@ -44,18 +52,45 @@ class Activation(context: Context) {
     }
 
     fun license(): License? {
-        val value = stored
-        if (!configured || value == null) {
-            reason = if (configured) "أدخل بريدك ورمز التفعيل الوارد من إدارة التطبيق"
-                else "تحتاج هذه النسخة إلى إعداد مفتاح الترخيص وبريد الإدارة"
+        val now = effectiveTime() ?: return null
+        val signed = stored?.takeIf { configured && now < it.expiresAt }
+        val trial = freeTrial ?: startTrial(now)
+        val available = if (trial != null && now < trial.expiresAt &&
+            (signed == null || trial.expiresAt > signed.expiresAt)
+        ) trial else signed
+        reason = when {
+            available != null -> ""
+            trial == null -> "تعذّر حفظ تاريخ بدء الفترة المجانية. أعد فتح التطبيق."
+            !configured -> "انتهت الفترة المجانية. يلزم إعداد بريد الإدارة ومفتاح التفعيل لهذه النسخة."
+            stored?.let { it.expiresAt >= trial.expiresAt } == true ->
+                "انتهت صلاحية الترخيص. تواصل مع الإدارة لتجديد التفعيل."
+            else -> "انتهت الأشهر الستة المجانية. اطلب رمز التفعيل من الإدارة."
+        }
+        return available
+    }
+
+    private fun startTrial(now: Long): License? {
+        if (!trialSettings.edit().putLong("startedAt", now).putString("device", device).commit()) {
             return null
         }
+        return trialLicense(now).also { freeTrial = it }
+    }
+
+    private fun trialLicense(start: Long): License {
+        val end = GregorianCalendar(TimeZone.getTimeZone("UTC")).apply {
+            timeInMillis = start * 1000
+            add(Calendar.MONTH, 6)
+        }.timeInMillis / 1000
+        return License("", "trial", end)
+    }
+
+    private fun effectiveTime(): Long? {
         val elapsed = SystemClock.elapsedRealtime() / 1000
         val wall = System.currentTimeMillis() / 1000
         val continued = if (bootCount >= 0 && bootCount == lastBoot && elapsed >= lastElapsed) {
             lastObserved + elapsed - lastElapsed
         } else lastObserved
-        if (wall < lastObserved - 300) {
+        if (wall <= 0 || wall < lastObserved - 300) {
             reason = "صحّح تاريخ الهاتف ووقته لتأكيد صلاحية الترخيص"
             return null
         }
@@ -66,12 +101,7 @@ class Activation(context: Context) {
             lastBoot = bootCount
             settings.edit().putLong("lastSeen", now).putLong("elapsed", elapsed).putInt("boot", bootCount).apply()
         }
-        if (now >= value.expiresAt) {
-            reason = "انتهت الصلاحية. تواصل مع الإدارة لتجديد التفعيل."
-            return null
-        }
-        reason = ""
-        return value
+        return now
     }
 
     fun activate(email: String, token: String): String {
@@ -79,7 +109,8 @@ class Activation(context: Context) {
         if (!configured) return "تحتاج النسخة إلى إعداد مفتاح الترخيص وبريد الإدارة"
         val value = verify(token) ?: return "رمز التفعيل غير صالح لهذا الجهاز"
         if (value.email != normalized) return "استخدم عنوان البريد الذي استلم رمز التفعيل"
-        if (value.expiresAt <= maxOf(System.currentTimeMillis() / 1000, lastObserved)) {
+        val now = effectiveTime() ?: return reason
+        if (value.expiresAt <= now) {
             return "انتهت صلاحية هذا الرمز"
         }
         if (!settings.edit().putString("token", token.trim()).commit()) return "تعذر حفظ التفعيل"
