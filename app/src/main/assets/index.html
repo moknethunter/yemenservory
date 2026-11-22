@@ -1,101 +1,232 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="ar" dir="rtl">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; base-uri 'none'; form-action 'none'">
     <title>مسّاح اليمن</title>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
-    <div class="container">
-        <header>
-            <h1>📍 مسّاح اليمن</h1>
-            <p class="subtitle">قياس إحداثيات ومسافات ومساحات</p>
-        </header>
+<main class="shell">
+    <header class="app-header">
+        <div><h1>مسّاح اليمن</h1><p>الرفع والإسقاط الميداني</p></div>
+        <span id="licenseSummary" class="license-summary" hidden></span>
+    </header>
 
-        <div id="calibrationScreen" class="screen active">
-            <div class="icon">🔄</div>
-            <h2>معايرة المستشعرات</h2>
-            <p>حرّك الهاتف بحركة لولبية (شكل 8) ببطء لمدة 5 ثوانٍ</p>
-            <div class="progress-bar"><div id="calibrationProgress" class="progress-fill"></div></div>
-            <p id="calibrationStatus" class="status">في انتظار الحركة...</p>
+    <section id="activation" class="card">
+        <h2>تفعيل التطبيق</h2>
+        <p id="activationReason" class="muted">جاري التحقق من الترخيص…</p>
+        <p class="muted">يبدأ الاستخدام المجاني عند أول تشغيل ويستمر ستة أشهر. بعد ذلك ترسل الإدارة رمز التفعيل إلى بريدك بعد الدفع.</p>
+        <label>بريدك الإلكتروني<input id="email" type="email" maxlength="254" autocomplete="email" dir="ltr"></label>
+        <label>رمز هذا الجهاز<input id="device" readonly dir="ltr"></label>
+        <button id="requestActivation" class="secondary" onclick="requestActivation()">طلب التفعيل أو التجديد بالبريد</button>
+        <label>رمز التفعيل<textarea id="activationToken" dir="ltr" rows="3" maxlength="1400" spellcheck="false"></textarea></label>
+        <button id="activate" onclick="activate()">تفعيل</button>
+        <p id="activationMessage" class="status" role="status"></p>
+    </section>
+
+    <div id="workspace" hidden>
+        <nav class="tabs" aria-label="أقسام التطبيق">
+            <button class="tab current" data-screen="field" onclick="showPanel('field')">الميدان</button>
+            <button class="tab" data-screen="points" onclick="showPanel('points')">النقاط <span id="pointCount">0</span></button>
+            <button class="tab" data-screen="report" onclick="showPanel('report')">التقرير</button>
+        </nav>
+
+        <div id="field" class="panel">
+            <section class="card" aria-labelledby="fix-heading">
+                <div class="section-head"><h2 id="fix-heading">الموقع الحالي</h2><span id="fixSource" class="pill">انتظار الموقع</span></div>
+                <div class="grid values">
+                    <div><span>خط العرض</span><strong id="liveLat">—</strong></div>
+                    <div><span>خط الطول</span><strong id="liveLon">—</strong></div>
+                    <div><span>تقدير الدقة الأفقية</span><strong id="liveAcc">—</strong></div>
+                    <div><span>الارتفاع</span><strong id="liveAlt">—</strong></div>
+                </div>
+                <p class="status" id="fixState"></p>
+                <button id="locationPermission" class="secondary" onclick="callAndroid('requestLocation')">إتاحة الموقع الدقيق</button>
+                <label class="check"><input type="checkbox" id="strictRtk"><span>اشتراط تثبيت RTK وتقدير أفقي ≤ ٥ سم عند الرفع</span></label>
+                <div class="actions">
+                    <button onclick="callAndroid('captureLocal', byId('strictRtk').checked)">رفع من هذا الجهاز</button>
+                    <button class="secondary" onclick="showPanel('points')">اختيار نقطة للإسقاط</button>
+                </div>
+                <p class="status" id="captureMessage" role="status"></p>
+            </section>
+
+            <details id="receiverPanel" class="card">
+                <summary>مستقبل RTK عبر Bluetooth</summary>
+                <p class="muted">اقرن مستقبل SPP وشغّل رسائل GGA وGST والتصحيحات من قاعدة أو NTRIP في المستقبل.</p>
+                <div class="actions">
+                    <button class="secondary" onclick="callAndroid('bluetoothSettings')">إعدادات Bluetooth</button>
+                    <button class="secondary" onclick="callAndroid('receivers')">عرض الأجهزة المقترنة</button>
+                </div>
+                <label>المستقبل<select id="devices"><option value="">اختر جهازًا</option></select></label>
+                <div class="actions">
+                    <button onclick="connectRtk()">اتصال</button>
+                    <button class="secondary" onclick="callAndroid('disconnectReceiver')">العودة إلى موقع الهاتف</button>
+                </div>
+                <p class="status" id="receiverStatus" role="status"></p>
+            </details>
+
+            <section class="card" aria-labelledby="team-heading">
+                <h2 id="team-heading">جلسة أجهزة متعددة</h2>
+                <p class="muted">ثبّت الهاتف الرئيسي والهواتف المرجعية. يقف حامل الهاتف المتحرك على النقطة حتى تصل إشارة الرفع.</p>
+                <div class="actions" id="openHost">
+                    <button onclick="callAndroid('startHost', true)">فتح نقطة اتصال</button>
+                    <button class="secondary" onclick="callAndroid('startHost', false)">استخدام Wi-Fi قائمة</button>
+                </div>
+                <div id="hostControl" hidden>
+                    <p id="hotspotCredentials" class="hotspot" hidden></p>
+                    <label>عنوان المحطة على Wi-Fi<select id="addresses"></select></label>
+                    <div class="actions">
+                        <button onclick="shareInvite()">نسخ ومشاركة الدعوة</button>
+                        <button class="secondary" onclick="callAndroid('stopHost')">إنهاء الجلسة</button>
+                    </div>
+                    <details>
+                        <summary>إحداثيات معروفة للمحطة الرئيسية</summary>
+                        <div class="grid">
+                            <label>خط العرض<input id="baseLat" placeholder="15.35000000" dir="ltr" inputmode="decimal"></label>
+                            <label>خط الطول<input id="baseLon" placeholder="44.20000000" dir="ltr" inputmode="decimal"></label>
+                        </div>
+                        <button class="secondary" onclick="setBase()">تثبيت إحداثيات المحطة</button>
+                    </details>
+                    <ul id="stationList" class="station-list" aria-label="الأجهزة المتصلة"></ul>
+                    <div class="grid">
+                        <label>جهاز لتعيين دوره<select id="assignDevice"></select></label>
+                        <label>الدور في الجلسة<select id="assignRole"><option value="REFERENCE">مرجع ثابت</option><option value="ROVER">متحرك (المراية)</option></select></label>
+                    </div>
+                    <button class="secondary" onclick="assignRole()">تعيين الدور</button>
+                    <label>الهاتف المتحرك<select id="rover"></select></label>
+                    <div class="actions">
+                        <button id="captureRover" onclick="captureRover()">إرسال نبضة القياس</button>
+                        <button id="cancelCapture" class="secondary" onclick="callAndroid('cancelCapture')" hidden>إلغاء الطلب</button>
+                    </div>
+                    <p id="hostStatus" class="status" role="status"></p>
+                    <div id="measurement" hidden><h3>ردود آخر نبضة قياس</h3><ul id="measurements" class="station-list"></ul></div>
+                </div>
+                <details id="joinPanel">
+                    <summary>انضمام كجهاز مشارك</summary>
+                    <p class="muted">افتح رابط الجلسة أو الصقه هنا. تتم مشاركة الموقع على الشبكة المحلية أثناء فتح التطبيق.</p>
+                    <div id="joinForm">
+                        <label>رابط الدعوة<input id="inviteInput" dir="ltr" maxlength="300" autocomplete="off"></label>
+                        <label>اسم الجهاز<input id="deviceName" maxlength="40" placeholder="مثلًا: الهاتف المتحرك"></label>
+                        <details><summary>نقطة تحكم معلومة للجهاز المرجعي</summary>
+                            <div class="grid">
+                                <label>خط عرض نقطة التحكم<input id="controlLat" dir="ltr" inputmode="decimal"></label>
+                                <label>خط طول نقطة التحكم<input id="controlLon" dir="ltr" inputmode="decimal"></label>
+                            </div>
+                        </details>
+                        <button onclick="joinHost()">مشاركة موقعي والانضمام</button>
+                    </div>
+                    <div id="relayControls" hidden>
+                        <p class="muted">للترحيل خارج مدى المحطة، يمكن للهاتف الثابت فتح شبكة ثانية إذا كان يدعم بقاء اتصال Wi-Fi الأساسي.</p>
+                        <button id="startRelay" class="secondary" onclick="callAndroid('openRelayHotspot')">فتح نقطة اتصال للترحيل</button>
+                        <button id="stopRelay" class="secondary" onclick="callAndroid('closeRelayHotspot')" hidden>إغلاق نقطة الترحيل</button>
+                        <p id="relayCredentials" class="hotspot" hidden></p>
+                    </div>
+                    <button id="leave" class="secondary" onclick="callAndroid('leave')" hidden>إيقاف المشاركة</button>
+                    <p id="guestStatus" class="status" role="status"></p>
+                </details>
+                <p id="networkStatus" class="status" role="status"></p>
+            </section>
+
+            <section id="stakeoutCard" class="card" hidden>
+                <h2>الإسقاط الميداني</h2>
+                <p id="stakeoutTarget" class="coords"></p>
+                <p id="stakeoutGuide" class="metric"></p>
+                <p id="stakeoutAccuracy" class="muted"></p>
+                <div class="actions">
+                    <button id="sendTarget" class="secondary" onclick="sendStakeout(false)">إرسال للهاتف المتحرك</button>
+                    <button id="clearTarget" class="secondary" onclick="clearStakeout()">إنهاء التوجيه</button>
+                </div>
+                <p id="stakeoutStatus" class="status"></p>
+            </section>
         </div>
 
-        <div id="stabilizeScreen" class="screen">
-            <div class="icon">📱</div>
-            <h2>ثبّت الهاتف</h2>
-            <p>ضع الهاتف على حامل ثابت</p>
-            <div class="spinner"></div>
-            <p id="stabilizeStatus" class="status">جاري استقبال إشارات GPS...</p>
+        <div id="points" class="panel" hidden>
+            <section class="card">
+                <div class="section-head"><h2>النقاط المحفوظة</h2><button class="quiet" onclick="byId('importFile').click()">استيراد Excel أو CSV</button></div>
+                <input type="file" id="importFile" accept=".csv,.xlsx,.xls" onchange="importFile(event)" hidden>
+                <ul id="pointsList" class="point-list"></ul>
+            </section>
+
+            <section class="card">
+                <h2>الحسابات الميدانية</h2>
+                <label class="check"><input type="checkbox" id="closePolygon" checked onchange="showCalculations()"><span>إغلاق المضلع وحساب المساحة</span></label>
+                <div id="calcResults"></div>
+                <button class="secondary" onclick="tidySavedOrder()">ترتيب الحدود وإزالة التقاطعات</button>
+            </section>
+
+            <section class="card">
+                <h2>التصدير والخرائط</h2>
+                <div class="actions export-grid">
+                    <button onclick="exportFile('xlsx')">Excel ‎.xlsx</button>
+                    <button class="secondary" onclick="exportFile('csv')">CSV</button>
+                    <button class="secondary" onclick="shareCsv()">مشاركة CSV</button>
+                    <button class="secondary" onclick="exportFile('dxf')">AutoCAD ‎.dxf</button>
+                    <button class="secondary" onclick="exportFile('pnezd')">Civil 3D · PNEZD</button>
+                    <button class="secondary" onclick="exportFile('kml')">حفظ KML</button>
+                    <button class="secondary" onclick="openEarth()">فتح في Google Earth</button>
+                </div>
+                <label>منطقة UTM للرسم وملف PNEZD
+                    <input id="utmZone" type="number" min="1" max="60" placeholder="تلقائي من أول نقطة" onchange="updateGridLabel()">
+                </label>
+                <p class="muted" id="gridLabel"></p>
+                <button class="quiet danger" onclick="clearPoints()">مسح كل النقاط</button>
+            </section>
         </div>
 
-        <div id="resultScreen" class="screen">
-            <div class="icon">✅</div>
-            <h2>الإحداثيات</h2>
-            <div class="coords-grid">
-                <div class="coord-item"><span class="label">خط العرض</span><span id="latValue" class="value">--</span></div>
-                <div class="coord-item"><span class="label">خط الطول</span><span id="lonValue" class="value">--</span></div>
-                <div class="coord-item"><span class="label">الارتفاع</span><span id="altValue" class="value">--</span></div>
-                <div class="coord-item"><span class="label">دقة الموقع</span><span id="accValue" class="value">--</span></div>
-            </div>
-            <div class="button-group">
-                <button onclick="savePoint()" class="btn primary">💾 حفظ النقطة</button>
-                <button onclick="resetApp()" class="btn secondary">🔄 نقطة جديدة</button>
-            </div>
-            <p id="saveStatus" class="status"></p>
-        </div>
-
-        <div class="saved-points">
-            <h3>النقاط المحفوظة (<span id="pointCount">0</span>)</h3>
-            <div id="pointsList" class="points-list"></div>
-
-            <div class="section-title">🛰️ صورة إسقاط من Google Earth</div>
-            <div class="button-group">
-                <button onclick="attachSatelliteImage()" class="btn satellite">📷 إرفاق صورة</button>
-                <button onclick="removeSatelliteImage()" class="btn danger-small">🗑️ حذف</button>
-            </div>
-            <input type="file" id="satelliteImageInput" accept="image/*"
-                   style="display:none" onchange="handleSatelliteImage(event)">
-            <div id="satelliteImagePreview"></div>
-
-            <div class="section-title">📤 تصدير البيانات</div>
-            <div class="button-group">
-                <button onclick="saveWithDialog()" class="btn export">💾 حفظ باسم...</button>
-                <button onclick="shareCSV()" class="btn share">📤 مشاركة</button>
-            </div>
-            <div class="button-group">
-                <button onclick="openInGoogleEarth()" class="btn earth">🌍 فتح في Google Earth</button>
-            </div>
-            <div class="button-group">
-                <button onclick="printPDF()" class="btn pdf">🖨️ طباعة تقرير PDF</button>
-            </div>
-
-            <div class="section-title">📥 استيراد البيانات</div>
-            <button onclick="triggerImport()" class="btn import">📥 استيراد من Excel/CSV</button>
-
-            <div class="section-title">📐 الحسابات الجيوديسية</div>
-            <label class="toggle-row">
-                <input type="checkbox" id="closePolygon" checked>
-                <span>إغلاق المضلع (ربط النقطة الأخيرة بالأولى)</span>
-            </label>
-            <div class="button-group">
-                <button onclick="calculateAll()" class="btn calc">📏 حساب المسافات والمساحة</button>
-            </div>
-            <div id="calcResults" class="calc-results"></div>
-
-            <button onclick="clearAllPoints()" class="btn danger">🗑️ مسح كل النقاط</button>
+        <div id="report" class="panel" hidden>
+            <section class="card">
+                <h2>إعداد تقرير المسح</h2>
+                <div class="grid">
+                    <label>عنوان التقرير<input id="reportTitle" maxlength="90" value="تقرير مسح ميداني"></label>
+                    <label>المشروع أو الموقع<input id="projectName" maxlength="90"></label>
+                    <label>العميل<input id="clientName" maxlength="70"></label>
+                    <label>المسّاح<input id="surveyorName" maxlength="70"></label>
+                </div>
+                <label>ملاحظات<textarea id="notes" maxlength="1000" rows="3"></textarea></label>
+                <div class="grid">
+                    <label>نوع الرسم<select id="drawType">
+                        <option value="polygon">مضلع مغلق</option><option value="route">مسار مفتوح</option>
+                        <option value="points">نقاط فقط</option><option value="none">بدون رسم</option>
+                    </select></label>
+                    <label>تسميات الرسم<select id="drawLabels">
+                        <option value="ids">أرقام النقاط</option><option value="both">الأرقام والأبعاد</option>
+                        <option value="lengths">الأبعاد</option><option value="none">بدون تسميات</option>
+                    </select></label>
+                    <label>ترتيب الرسم<select id="reportOrder">
+                        <option value="tidy">إزالة التقاطعات تلقائيًا</option><option value="recorded">ترتيب النقاط المحفوظ</option>
+                    </select></label>
+                    <label>ألوان التقرير<select id="reportTheme">
+                        <option value="navy">كحلي</option><option value="teal">أخضر</option><option value="mono">أبيض وأسود</option>
+                    </select></label>
+                    <label>اتجاه ورقة A4<select id="paper">
+                        <option value="portrait">طولي</option><option value="landscape">عرضي</option>
+                    </select></label>
+                </div>
+                <label class="check"><input type="checkbox" id="includeImage" checked><span>إظهار الصورة الجوية المرفقة</span></label>
+                <div class="actions">
+                    <button class="secondary" onclick="byId('satelliteImageInput').click()">إرفاق صورة جوية</button>
+                    <button class="quiet" onclick="removeImage()">إزالة الصورة</button>
+                </div>
+                <input type="file" id="satelliteImageInput" accept="image/*" onchange="attachImage(event)" hidden>
+                <img id="imagePreview" class="photo" alt="الصورة الجوية المرفقة" hidden>
+                <div class="actions">
+                    <button class="secondary" onclick="previewReport()">معاينة الرسم</button>
+                    <button onclick="printReport()">طباعة أو حفظ PDF</button>
+                </div>
+                <p id="reportMessage" class="muted" role="status"></p>
+                <div id="reportPreview"></div>
+            </section>
+            <a href="chat.html" class="chat">فتح الدردشة</a>
         </div>
     </div>
-
-    <input type="file" id="importFile"
-        accept=".csv,.xlsx,.xls,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel"
-        style="display:none" onchange="handleFileImport(event)">
-
-    <script src="https://cdn.sheetjs.com/xlsx-0.20.0/package/dist/xlsx.full.min.js"></script>
-    <script src="app.js"></script>
-    <!-- زر عائم لفتح صفحة الدردشة المستقلة -->
-<a href="chat.html" style="position: fixed; bottom: 20px; left: 20px; background: #007bff; color: white; padding: 15px; border-radius: 50px; box-shadow: 0 4px 10px rgba(0,0,0,0.3); text-decoration: none; font-weight: bold; z-index: 9999; font-family: sans-serif; display: flex; align-items: center; gap: 5px;">
-  💬 الدردشة
-</a>
+</main>
+<script src="vendor/xlsx.full.min.js"></script>
+<script src="vendor/geographiclib-geodesic.min.js"></script>
+<script src="vendor/proj4.js"></script>
+<script src="exports.js"></script>
+<script src="report.js"></script>
+<script src="app.js"></script>
 </body>
 </html>

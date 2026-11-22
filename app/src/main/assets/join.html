@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="referrer" content="no-referrer">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline'; base-uri 'none'">
+<title>جلسة مسّاح اليمن</title>
+<style>
+body { margin: 0; background: #0a1224; color: #edf4fa; font: 1rem/1.7 system-ui,sans-serif; }
+main { max-width: 31rem; margin: 10vh auto; padding: 1.5rem; }
+h1 { color: #6edcc8; } a, button { display: inline-block; margin: .6rem 0; padding: .7rem 1rem; border: 0;
+  border-radius: .6rem; background: #6edcc8; color: #0b242d; font: inherit; font-weight: 700; }
+input { display: block; box-sizing: border-box; width: 100%; padding: .6rem; direction: ltr; }
+[hidden] { display: none; }
+</style>
+</head>
+<body>
+<main>
+<h1>الانضمام إلى جلسة مسح</h1>
+<p>افتح تطبيق مسّاح اليمن على هذا الهاتف، ثم اختر دوره واسمح بمشاركة موقعه أثناء العمل الميداني.</p>
+<a id="open" hidden>فتح في مسّاح اليمن</a>
+<div id="manual" hidden><label for="invite">يمكنك لصق هذا الرابط داخل التطبيق</label>
+<input id="invite" readonly dir="ltr"><button id="select">تحديد الرابط للنسخ</button></div>
+<p id="missing" hidden>افتح رابط الدعوة الكامل من الهاتف الرئيسي.</p>
+</main>
+<script>
+const key = location.hash.slice(1);
+const match = location.host.match(/^([0-9.]+):([0-9]+)$/);
+if (match && /^[A-Za-z0-9_-]{43}$/.test(key)) {
+    const link = document.getElementById('open');
+    link.href = 'intent://join?ip=' + match[1] + '&port=' + match[2] + '&key=' + key +
+        '#Intent;scheme=yemensurveyor;end';
+    link.hidden = false;
+    const invite = document.getElementById('invite');
+    invite.value = location.href;
+    document.getElementById('manual').hidden = false;
+    document.getElementById('select').onclick = () => { invite.focus(); invite.select(); };
+} else document.getElementById('missing').hidden = false;
+</script>
+</body>
+</html>
